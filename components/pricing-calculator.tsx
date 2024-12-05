@@ -1,103 +1,142 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
+import { Button } from "@/components/ui/button"
+
+interface Service {
+  id: number
+  type: string
+  people: number
+  hours: number
+  frequency: number
+}
 
 export default function PricingCalculator() {
-  const [service, setService] = useState('')
-  const [people, setPeople] = useState(1)
-  const [hours, setHours] = useState(1)
-  const [frequency, setFrequency] = useState(1)
-  const [total, setTotal] = useState(0)
+  const [services, setServices] = useState<Service[]>([
+    { id: Date.now(), type: '', people: 1, hours: 1, frequency: 1 },
+  ])
 
-  const calculateTotal = () => {
-    // This is a placeholder calculation. You should replace this with your actual pricing logic.
-    const baseRate = 100 // Base rate per hour
-    const serviceFactor = service === 'liveevent' ? 1.5 : 1 // Live events cost 50% more
-    const calculatedTotal = baseRate * people * hours * frequency * serviceFactor
-    setTotal(calculatedTotal)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateService = (id: number, field: keyof Service, value: any) => {
+    setServices(prevServices =>
+      prevServices.map(service =>
+        service.id === id ? { ...service, [field]: value } : service
+      )
+    )
+  }
+
+  const calculateTotal = (service: Service): number => {
+    const baseRate = 100
+    const serviceFactor = service.type === 'liveevent' ? 1.5 : 1
+    const calculatedTotal = baseRate * service.people * service.hours * service.frequency * serviceFactor
+    const discount = service.hours > 8 ? 0.1 : 0
+    return calculatedTotal * (1 - discount)
+  }
+
+  const grandTotal = services.reduce((sum, service) => sum + calculateTotal(service), 0)
+
+  const addService = () => {
+    setServices([
+      ...services,
+      { id: Date.now(), type: '', people: 1, hours: 1, frequency: 1 },
+    ])
+  }
+
+  const deleteService = (id: number) => {
+    if (services.length > 1) {
+      setServices(services.filter(service => service.id !== id))
+    }
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto my-auto">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold text-center">Media Production Pricing Calculator</CardTitle>
+        <CardTitle className="text-2xl font-bold text-center">PulseFrame Studios Pricing</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="service">Service Type</Label>
-          <Select onValueChange={setService}>
-            <SelectTrigger id="service">
-              <SelectValue placeholder="Select a service" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="podcast">Podcast Production</SelectItem>
-              <SelectItem value="highlight">Highlight Reel</SelectItem>
-              <SelectItem value="liveevent">Live Event Coverage</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {services.map((service, index) => (
+          <div key={service.id} className="space-y-4 border-b pb-4 relative">
+            <h3 className="font-semibold text-lg">Service #{index + 1}</h3>
 
-        <div className="space-y-2">
-          <Label htmlFor="people">Number of People Required</Label>
-          <Slider
-            id="people"
-            min={1}
-            max={10}
-            step={1}
-            value={[people]}
-            onValueChange={(value) => setPeople(value[0])}
-          />
-          <div className="text-right">{people} people</div>
-        </div>
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={() => deleteService(service.id)} 
+              className="absolute top-0 right-0"
+              disabled={services.length === 1}
+            >
+              Delete
+            </Button>
 
-        <div className="space-y-2">
-          <Label htmlFor="hours">Number of Hours</Label>
-          <Slider
-            id="hours"
-            min={1}
-            max={24}
-            step={1}
-            value={[hours]}
-            onValueChange={(value) => setHours(value[0])}
-          />
-          <div className="text-right">{hours} hours</div>
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor={`service-${service.id}`}>Service Type</Label>
+              <Select onValueChange={(value) => updateService(service.id, 'type', value)}>
+                <SelectTrigger id={`service-${service.id}`}>
+                  <SelectValue placeholder="Select a service" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="podcast">Podcast Production</SelectItem>
+                  <SelectItem value="highlight">Highlight Reel</SelectItem>
+                  <SelectItem value="liveevent">Live Event Coverage</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="frequency">Frequency of Service</Label>
-          <Input
-            id="frequency"
-            type="number"
-            min={1}
-            value={frequency}
-            onChange={(e) => setFrequency(parseInt(e.target.value) || 1)}
-          />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor={`people-${service.id}`}>Number of People Required</Label>
+              <Slider
+                id={`people-${service.id}`}
+                min={1}
+                max={10}
+                step={1}
+                value={[service.people]}
+                onValueChange={(value) => updateService(service.id, 'people', value[0])}
+              />
+              <div className="text-right">{service.people} people</div>
+            </div>
 
-        <div className="bg-muted p-4 rounded-md">
-          <h3 className="font-semibold mb-2">Additional Information</h3>
-          <ul className="list-disc list-inside text-sm space-y-1">
-            <li>Live event coverage may incur additional costs for equipment rental.</li>
-            <li>For projects longer than 8 hours, we offer a 10% discount.</li>
-            <li>Weekend rates may be higher. Please contact us for specific quotes.</li>
-          </ul>
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor={`hours-${service.id}`}>Number of Hours</Label>
+              <Slider
+                id={`hours-${service.id}`}
+                min={1}
+                max={24}
+                step={1}
+                value={[service.hours]}
+                onValueChange={(value) => updateService(service.id, 'hours', value[0])}
+              />
+              <div className="text-right">{service.hours} hours</div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor={`frequency-${service.id}`}>Frequency of Service</Label>
+              <Input
+                id={`frequency-${service.id}`}
+                type="number"
+                min={1}
+                value={service.frequency}
+                onChange={(e) => updateService(service.id, 'frequency', parseInt(e.target.value) || 1)}
+              />
+            </div>
+
+            <div className="text-right font-semibold">
+              Service Total: ${calculateTotal(service).toFixed(2)}
+            </div>
+          </div>
+        ))}
+
+        <Button onClick={addService} className="w-full mt-4">Add Another Service</Button>
       </CardContent>
       <CardFooter className="flex flex-col items-center space-y-4">
-        <Button onClick={calculateTotal} className="w-full">Calculate Total</Button>
-        {total > 0 && (
-          <div className="text-xl font-bold">
-            Estimated Total: ${total.toFixed(2)}
-          </div>
-        )}
+        <div className="text-xl font-bold">
+          Grand Total: ${grandTotal.toFixed(2)}
+        </div>
       </CardFooter>
     </Card>
   )
 }
-
